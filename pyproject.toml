@@ -3,6 +3,8 @@ name = "abcgpt"
 version = "0.1.0"
 description = "Companion code: a small GPT-2 trained from scratch on Irish tunes in ABC notation, then finetuned with SFT and GRPO using the Hugging Face stack."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11,<3.14"
 dependencies = [
     "accelerate>=1.10",

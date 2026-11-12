@@ -258,3 +258,9 @@ run.sh                    one entry point for all the stages
   (Apache-2.0). Starting `finetune` from MuPT instead of our pretrained model only needs
   `model_name_or_path` and `trust_remote_code: true` in `configs/finetune.yaml`, but the data must
   first be converted to its format (SMT-ABC, with `<n>` in place of newlines).
+
+## License
+
+MIT, see [LICENSE](LICENSE). The tunes used as test fixtures come from IrishMAN (MIT licence). The
+dependencies are under permissive licences (Apache-2.0, BSD-3-Clause, MIT); abcjs (MIT) is loaded by
+the demo from a CDN and llama.cpp (MIT) is used from its own checkout, so neither is included here.
