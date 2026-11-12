@@ -12,7 +12,7 @@ train_sampling_strategy: group_by_length  # batches of tunes of similar length: 
 num_train_epochs: 1
 per_device_train_batch_size: 32
 per_device_eval_batch_size: 64
-learning_rate: 2.0e-4
+learning_rate: 5.0e-5      # same tunes as pretraining, which ended near lr 0: at 2e-4 the loss went back up
 lr_scheduler_type: cosine
 warmup_steps: 200
 bf16: true
