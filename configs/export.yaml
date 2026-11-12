@@ -1,0 +1,4 @@
+# LLAMA_CPP_DIR=/path/to/llama.cpp python -m abcgpt.export_gguf --config configs/export.yaml
+model_path: models/gpt2-abc-grpo
+outfile: models/gpt2-abc-grpo.gguf
+outtype: f16               # f32, f16, bf16 or q8_0

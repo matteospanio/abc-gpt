@@ -1,0 +1,12 @@
+# python -m abcgpt.prepare --config configs/prepare.yaml   (any field can be overridden: --vocab_size 4096)
+dataset_name: sander-wood/irishman
+vocab_size: 2048           # BPE vocabulary trained on ABC text
+n_layer: 8                 # GPT-2 size: ~27M parameters with these values
+n_head: 8
+n_embd: 512
+n_positions: 1024          # longest sequence the model can see
+model_dir: models/gpt2-abc-init
+data_dir: data
+num_grpo_prompts: 5000
+num_eval_prompts: 200
+seed: 42

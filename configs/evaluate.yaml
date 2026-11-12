@@ -1,0 +1,12 @@
+# python -m abcgpt.evaluate --config configs/evaluate.yaml
+checkpoints:
+  - models/gpt2-abc-pretrain
+  - models/gpt2-abc-sft
+  - models/gpt2-abc-grpo
+prompts_file: data/eval/prompts.jsonl
+num_samples: 100           # tunes generated per checkpoint
+batch_size: 25
+max_new_tokens: 384
+temperature: 1.0
+output_dir: outputs        # tunes.jsonl and MusicXML files per checkpoint
+seed: 42
