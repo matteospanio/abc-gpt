@@ -17,6 +17,8 @@ from trl import TrlParser
 
 from abcgpt import rewards
 
+REWARDS = ("syntax", "meter", "note_order", "structure")
+
 
 @dataclass
 class EvaluateConfig:
@@ -25,7 +27,7 @@ class EvaluateConfig:
     prompts_dir: str = "data/eval"  # JSONL files written by abcgpt.data
     num_samples: int = 100
     batch_size: int = 25
-    max_new_tokens: int = 384
+    max_new_tokens: int = 512
     temperature: float = 1.0
     output_dir: str = "outputs"
     seed: int = 42
@@ -66,8 +68,7 @@ def main(cfg: EvaluateConfig) -> None:
             continue
         set_seed(cfg.seed)
         completions = generate(checkpoint, prompts, cfg)
-        scores = {name: getattr(rewards, name)(completions=completions, prompts=prompts)
-                  for name in ("syntax", "meter", "note_order")}
+        scores = {name: getattr(rewards, name)(completions=completions, prompts=prompts) for name in REWARDS}
 
         out_dir = Path(cfg.output_dir) / Path(checkpoint).name
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -78,15 +79,16 @@ def main(cfg: EvaluateConfig) -> None:
             for i, (prompt, completion) in enumerate(zip(prompts, completions)):
                 abc = rewards.tune(prompt, completion)
                 row_scores = {name: values[i] for name, values in scores.items()}
-                f.write(json.dumps({"abc": abc, **row_scores}, ensure_ascii=False) + "\n")
+                code = " ".join(rewards.control_code(abc))  # what the tune has, to compare with the prompt's
+                f.write(json.dumps({"abc": abc, "control_code": code, **row_scores}, ensure_ascii=False) + "\n")
                 if row_scores["syntax"] == 1.0:
                     exported += export_musicxml(abc, out_dir / f"tune_{i:03d}.musicxml")
         means = {name: sum(values) / len(values) for name, values in scores.items()}
         rows.append((Path(checkpoint).name, means, exported))
 
-    print(f"\n| checkpoint | syntax | meter | note_order | MusicXML files |\n|:--|--:|--:|--:|--:|")
+    print("\n| checkpoint | " + " | ".join(REWARDS) + " | MusicXML files |\n|:--|" + "--:|" * (len(REWARDS) + 1))
     for name, means, exported in rows:
-        print(f"| {name} | {means['syntax']:.3f} | {means['meter']:.3f} | {means['note_order']:.3f} | {exported} |")
+        print(f"| {name} | " + " | ".join(f"{means[r]:.3f}" for r in REWARDS) + f" | {exported} |")
 
 
 if __name__ == "__main__":

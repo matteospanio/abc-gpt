@@ -64,7 +64,7 @@ Estimates, not measured: the pipeline was tested end to end only on CPU with a t
 | data (8 CPU cores, measured) | 2 min | — |
 | pretrain (3 epochs, ~105M tokens) | ~1 h | ~2 min |
 | finetune (1 epoch) | ~20 min | ~1 min |
-| grpo (500 steps, 32 tunes per step) | ~45 min | ~2 min |
+| grpo (500 steps, 32 tunes per step) | ~1 h | ~2 min |
 | evaluate (100 tunes × 3 checkpoints) | ~3 min | ~1 min |
 
 ### Scaling the model
@@ -175,8 +175,9 @@ be a second format next to the one TRL already reads, so it is not used.
 
 ## Rewards
 
-`src/abcgpt/rewards.py` holds three functions that `configs/grpo.yaml` lists as dotted paths
-(`abcgpt.rewards.syntax`) with weights `[1.0, 1.0, 0.5]`:
+`src/abcgpt/rewards.py` holds four functions that `configs/grpo.yaml` lists as dotted paths
+(`abcgpt.rewards.syntax`) with weights `[1.0, 1.0, 0.5, 1.0]`. The first three judge the form of the ABC;
+the last one whether the tune follows the control code that finetuning taught the model to read:
 
 - `syntax`: 1 if music21 parses the tune without warnings and finds notes. music21 is lenient (it reads an
   unknown symbol as a C and only warns), so a warning counts as an error.
@@ -184,6 +185,12 @@ be a second format next to the one TRL already reads, so it is not used.
   `M:` and `L:`. Tuplets are scaled; a short bar next to a repeat or a double bar counts as correct.
 - `note_order`: share of notes written in the canonical order accidental–pitch–octave–length
   (`^c'2`, not `c^2` or `2c`).
+- `structure`: how close the tune is to the control code of its prompt. The code of the generated tune
+  is computed by `control_code`, a port of the TunesFormer script that annotated IrishMAN
+  (`add_control_codes.py`): sections end at `[|`, `||`, `|]`, `|:`, `::`, `:|` (a second ending `:|2`
+  stays in its section), `B` counts the bars of each section, and each section has one `E` per previous
+  section, `round(10 × (1 − Levenshtein / longer length))`. The score is the mean of three terms, each
+  1 − relative error: number of sections, bars of each section, similarities (out of 10).
 
 Parsing with music21 is the slow part, so `syntax` runs in a process pool. On about 1% of the tunes written
 by an untrained model music21 never returns: after `PARSE_TIMEOUT` (2 s of CPU time, so a busy machine
@@ -199,6 +206,12 @@ does not cause false timeouts; real tunes take at most 0.6 s) the tune scores 0.
 
 `note_order` is a weak signal (most generated notes are already in order): it has the lowest weight.
 `meter` is the one that separates real tunes from plausible-looking ones.
+
+`control_code` gives the same code as the dataset for all 2,162 validation tunes and for 99.94% of 5,000
+training tunes. Against their own code real tunes score `structure` = 1.000; against the code of another
+random tune 0.545 (0.826 when the number of sections happens to match). `evaluate` prints `structure`
+next to the other rewards and saves the code of each generated tune in `tunes.jsonl`; the demo shows it
+under the score, so you can compare it with the one you asked for.
 
 ## Slurm
 

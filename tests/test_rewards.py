@@ -48,3 +48,15 @@ def test_cut_bars_lower_meter():
 def test_length_before_pitch_lowers_note_order():
     swapped = [re.sub(r"([A-Ga-g])(\d)", r"\2\1", c) for _, c in TUNES]  # B3 -> 3B
     assert all(s < 0.95 for s in score("note_order", swapped))
+
+
+def test_control_code_matches_irishman():
+    for prompt, body in TUNES:
+        assert " ".join(rewards.control_code(prompt + body)) == prompt.split("\n")[0][1:]
+
+
+def test_structure_rewards_the_requested_code():
+    bodies = [c for _, c in TUNES]
+    assert score("structure", bodies) == [1.0, 1.0]
+    longer = [p.replace("B:5", "B:16").replace("B:8", "B:16") for p in PROMPTS]  # ask for longer sections
+    assert all(s < 1.0 for s in rewards.structure(completions=bodies, prompts=longer))

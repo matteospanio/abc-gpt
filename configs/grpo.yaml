@@ -10,12 +10,13 @@ reward_funcs:              # dotted paths to functions in src/abcgpt/rewards.py
   - abcgpt.rewards.syntax
   - abcgpt.rewards.meter
   - abcgpt.rewards.note_order
-reward_weights: [1.0, 1.0, 0.5]
+  - abcgpt.rewards.structure  # follows the control code in the prompt (sections, bars, similarity)
+reward_weights: [1.0, 1.0, 0.5, 1.0]
 
 num_generations: 8         # tunes per prompt (the group)
 per_device_train_batch_size: 8
 gradient_accumulation_steps: 4
-max_completion_length: 384
+max_completion_length: 512   # the data stage keeps prompt + completion within 512 tokens: no tune is cut
 temperature: 1.0
 learning_rate: 1.0e-5
 beta: 0.0                  # KL penalty towards the starting model; 0 disables it

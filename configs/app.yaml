@@ -1,5 +1,5 @@
 # python -m abcgpt.app --config configs/app.yaml
 model_path: models/gpt2-abc-grpo
-max_new_tokens: 384
+max_new_tokens: 512
 server_name: 127.0.0.1
 server_port: 7860

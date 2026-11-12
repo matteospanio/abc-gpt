@@ -6,7 +6,7 @@ checkpoints:
 prompts_dir: data/eval       # validation prompts written by abcgpt.data
 num_samples: 100           # tunes generated per checkpoint
 batch_size: 25
-max_new_tokens: 384
+max_new_tokens: 512
 temperature: 1.0
 output_dir: outputs        # tunes.jsonl and MusicXML files per checkpoint
 seed: 42

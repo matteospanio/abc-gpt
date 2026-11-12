@@ -9,6 +9,8 @@ as dotted paths (`abcgpt.rewards.syntax`) and weighted with `reward_weights`.
 - `meter`: share of bars whose length matches the time signature.
 - `note_order`: share of notes written in the canonical ABC order
   (accidental, pitch, octave marks, length), e.g. `^c'2` and not `c^2` or `2c`.
+- `structure`: how close the tune is to the control code in the prompt (sections, bars per section,
+  similarity between sections), measured as IrishMAN measured it.
 """
 
 import contextlib
@@ -172,3 +174,128 @@ def _note_order_score(body: str) -> float:
 
 def note_order(completions, **kwargs) -> list[float]:
     return [_note_order_score(c) for c in completions]
+
+
+# ---------------------------------------------------------------- structure (control code)
+# Port of add_control_codes.py from TunesFormer (github.com/sander-wood/tunesformer, data_curation.zip),
+# the script that wrote the control codes of IrishMAN: a tune gets the code it would have in the dataset.
+
+_SECTION_BARS = (":|", "||", "|]", "::", "|:", "[|")
+_SECTION_SPLIT = re.compile("(" + "|".join(map(re.escape, _SECTION_BARS)) + ")")
+_CODE = re.compile(r"[SBE]:\d+")
+
+
+def _levenshtein(a: str, b: str) -> int:
+    previous = list(range(len(b) + 1))
+    for i, char_a in enumerate(a, 1):
+        current = [i]
+        for j, char_b in enumerate(b, 1):
+            current.append(min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (char_a != char_b)))
+        previous = current
+    return previous[-1]
+
+
+def _continues_section(part: str) -> bool:
+    """A part that starts with a number is a second ending (`:|2 ...`) and belongs to the previous section."""
+    for char in part:
+        if char in '("!':  # tuplet, annotation or decoration: a later number is not an ending
+            return False
+        if char.isnumeric():
+            return True
+        if char.isalpha():
+            return False
+    return False
+
+
+def _sections(abc: str) -> list[str]:
+    """The body split on section bar lines, each part with the bar line that closes it."""
+    lines = re.split("(\n)", abc)
+    lines = [lines[i * 2] + lines[i * 2 + 1] for i in range(len(lines) // 2)]
+    header_lines, in_header = 0, False
+    for line in lines:  # header: up to the first line that is not a field (X:, M:, K: ...) after the fields
+        if len(line) > 1 and line[0].isalpha() and line[1] == ":":
+            header_lines, in_header = header_lines + 1, True
+        elif in_header:
+            break
+        else:
+            header_lines += 1
+    body = abc[len("".join(lines[:header_lines])):]
+
+    parts = [part for part in _SECTION_SPLIT.split(body) if part]
+    if not parts:
+        return []
+    if len(parts) == 1:  # no section bar line: one section, closed at its last bar line
+        parts = [body[::-1].replace("|", "]|", 1)[::-1]]
+    else:
+        if parts[0] in _SECTION_BARS:
+            parts = [parts[0] + parts[1]] + parts[2:]
+        parts = [parts[i * 2] + parts[i * 2 + 1] for i in range(len(parts) // 2)]  # text + its bar line
+
+    sections = []
+    for part in parts:
+        if _continues_section(part) and sections:
+            sections[-1] += part
+        else:
+            sections.append(part)
+    return sections
+
+
+def control_code(abc: str) -> list[str]:
+    """The control code of a tune, e.g. ["S:2", "B:8", "E:5", "B:8"]: before the bars of each section,
+    its similarity (0-10) with every previous section. Empty if the tune has no body."""
+    sections = _sections(abc)
+    if not sections:
+        return []
+    code = [f"S:{len(sections)}"]
+    for i, section in enumerate(sections):
+        for j in range(i):
+            similarity = 1 - _levenshtein(section, sections[j]) / max(len(section), len(sections[j]))
+            code.append(f"E:{round(similarity * 10)}")
+        for bar in _SECTION_BARS:
+            section = section.strip(bar).replace(bar, "|")
+        code.append(f"B:{section.count('|') + 1}")
+    return code
+
+
+def _unpack(code: list[str]) -> tuple[list[int], list[list[int]]]:
+    """Bars of each section and, for each section, its similarities with the previous ones."""
+    bars, similarities, current = [], [], []
+    for token in code[1:]:
+        if token[0] == "E":
+            current.append(int(token[2:]))
+        else:
+            bars.append(int(token[2:]))
+            similarities.append(current)
+            current = []
+    return bars, similarities
+
+
+def _closeness(got: int, wanted: int, scale: int) -> float:
+    return max(0.0, 1 - abs(got - wanted) / scale)
+
+
+def _structure_score(requested: list[str], generated: list[str]) -> float:
+    if not requested or not generated:
+        return 0.0
+    wanted_bars, wanted_similarities = _unpack(requested)
+    bars, similarities = _unpack(generated)
+    terms = [
+        _closeness(len(bars), len(wanted_bars), len(wanted_bars)),
+        sum(_closeness(bars[k], b, b) if k < len(bars) else 0.0 for k, b in enumerate(wanted_bars)) / len(wanted_bars),
+    ]
+    pairs = [(k, j, e) for k, row in enumerate(wanted_similarities) for j, e in enumerate(row)]
+    if pairs:  # a single section has no similarity to match
+        terms.append(sum(_closeness(similarities[k][j], e, 10) if k < len(similarities) else 0.0
+                         for k, j, e in pairs) / len(pairs))
+    return sum(terms) / len(terms)
+
+
+def structure(completions, prompts, **kwargs) -> list[float]:
+    """Mean of three closeness scores to the requested code: number of sections, bars of each section,
+    similarity of each pair of sections. 1 when the tune has exactly the requested code."""
+    scores = []
+    for prompt, completion in zip(prompts, completions):
+        comment, header = prompt.split("\n", 1)  # the prompt starts with the code as an ABC comment
+        scores.append(_structure_score(_CODE.findall(comment), control_code(header + completion)))
+    return scores
+
