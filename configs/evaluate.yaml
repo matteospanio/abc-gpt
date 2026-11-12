@@ -3,7 +3,7 @@ checkpoints:
   - models/gpt2-abc-pretrain
   - models/gpt2-abc-sft
   - models/gpt2-abc-grpo
-prompts_file: data/eval/prompts.jsonl
+prompts_dir: data/eval       # validation prompts written by abcgpt.data
 num_samples: 100           # tunes generated per checkpoint
 batch_size: 25
 max_new_tokens: 384

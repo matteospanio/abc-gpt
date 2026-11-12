@@ -4,7 +4,8 @@ TRL calls each function with the generated `completions` (strings) and the `prom
 keyword arguments, and expects one float per completion. They are listed in `configs/grpo.yaml`
 as dotted paths (`abcgpt.rewards.syntax`) and weighted with `reward_weights`.
 
-- `syntax`: 1 if music21 parses the tune without warnings and finds notes, 0 otherwise.
+- `syntax`: 1 if music21 parses the tune without warnings and finds notes, 0 otherwise (also if parsing
+  takes more than PARSE_TIMEOUT seconds: on some malformed tunes music21 never returns).
 - `meter`: share of bars whose length matches the time signature.
 - `note_order`: share of notes written in the canonical ABC order
   (accidental, pitch, octave marks, length), e.g. `^c'2` and not `c^2` or `2c`.
@@ -14,6 +15,7 @@ import contextlib
 import io
 import os
 import re
+import signal
 import warnings
 from concurrent.futures import ProcessPoolExecutor
 from fractions import Fraction
@@ -21,6 +23,7 @@ from fractions import Fraction
 from music21 import abcFormat, converter, meter as m21meter
 
 _POOL = None  # created on first use: parsing with music21 is the slow part
+PARSE_TIMEOUT = 2  # seconds of CPU time; real IrishMAN tunes take at most 0.6 s
 
 
 @contextlib.contextmanager
@@ -46,19 +49,35 @@ def tune(prompt: str, completion: str) -> str:
 
 # ---------------------------------------------------------------- syntax
 
-def _parses(abc: str) -> float:
+class _Timeout(BaseException):  # not an Exception, so that music21's own `except Exception` cannot swallow it
+    pass
+
+
+def _raise_timeout(signum, frame):
+    raise _Timeout
+
+
+def parses(abc: str) -> float:
+    """1 if music21 reads the whole tune without warnings and finds notes, within PARSE_TIMEOUT seconds."""
+    # CPU time, not wall time: with all cores busy (GRPO, DataTrove) a normal tune can take seconds to finish.
+    # shortcut: the timer exists only on Unix and works in the main thread (true in pool workers and DataTrove tasks)
+    signal.signal(signal.SIGVTALRM, _raise_timeout)
+    signal.setitimer(signal.ITIMER_VIRTUAL, PARSE_TIMEOUT)
     try:
         with quiet() as err:
             score = converter.parse(abc, format="abc")
-    except Exception:  # music21 raises many different exception types on malformed ABC
+            has_notes = len(score.flatten().notes) > 0
+    except (Exception, _Timeout):  # music21 raises many different exception types on malformed ABC
         return 0.0
+    finally:
+        signal.setitimer(signal.ITIMER_VIRTUAL, 0)
     # on symbols it cannot read music21 warns and guesses (a C note): count that as an error
-    return 1.0 if len(score.flatten().notes) > 0 and "WARNING" not in err.getvalue() else 0.0
+    return 1.0 if has_notes and "WARNING" not in err.getvalue() else 0.0
 
 
 def syntax(completions, prompts, **kwargs) -> list[float]:
     tunes = [tune(p, c) for p, c in zip(prompts, completions)]
-    return list(_pool().map(_parses, tunes, chunksize=4))
+    return list(_pool().map(parses, tunes, chunksize=4))
 
 
 # ---------------------------------------------------------------- meter

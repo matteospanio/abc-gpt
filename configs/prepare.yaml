@@ -6,7 +6,3 @@ n_head: 8
 n_embd: 512
 n_positions: 1024          # longest sequence the model can see
 model_dir: models/gpt2-abc-init
-data_dir: data
-num_grpo_prompts: 5000
-num_eval_prompts: 200
-seed: 42

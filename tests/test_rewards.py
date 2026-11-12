@@ -1,6 +1,7 @@
 """The rewards must tell real tunes from broken ones."""
 
 import re
+import time
 
 from abcgpt import rewards
 
@@ -30,6 +31,13 @@ def test_real_tunes_score_high():
 def test_no_notes_or_unreadable_symbols_fail_syntax():
     assert score("syntax", ["|: :: |]\n", "\n"]) == [0.0, 0.0]
     assert score("syntax", [c.replace(" | ", " j | ", 1) for _, c in TUNES]) == [0.0, 0.0]  # music21 reads j as C
+
+
+def test_tune_that_hangs_music21_fails_syntax_in_time():
+    hang = "X:1\nL:1/4\nM:6/4\nK:D\n", 'AFd14737183{^oder |"^/"ers |({'  # minimised from a generated tune
+    start = time.monotonic()
+    assert rewards.syntax(completions=[hang[1]], prompts=[hang[0]]) == [0.0]
+    assert time.monotonic() - start < rewards.PARSE_TIMEOUT + 2
 
 
 def test_cut_bars_lower_meter():

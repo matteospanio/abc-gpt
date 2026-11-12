@@ -5,14 +5,15 @@
 
 import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 import gradio as gr
 import torch
-from music21 import converter
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from trl import TrlParser
 
-from abcgpt.rewards import quiet
+from abcgpt import rewards
+from abcgpt.evaluate import export_musicxml
 
 ABCJS = '<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>'
 DRAW = "(abc) => { ABCJS.renderAbc('score', abc, { responsive: 'resize' }); return []; }"
@@ -37,14 +38,12 @@ def build(cfg: AppConfig) -> gr.Blocks:
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
         out = model.generate(**inputs, do_sample=True, temperature=temperature, max_new_tokens=cfg.max_new_tokens,
                              pad_token_id=tokenizer.pad_token_id)
-        abc = prompt + tokenizer.decode(out[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True)
-        path = tempfile.NamedTemporaryFile(suffix=".musicxml", delete=False).name
-        try:
-            with quiet():
-                converter.parse(abc, format="abc").write("musicxml", fp=path)
-        except Exception:  # the tune is shown anyway, only the MusicXML file is missing
-            path = None
-        return abc, path
+        body = tokenizer.decode(out[0, inputs["input_ids"].shape[1] :], skip_special_tokens=True)
+        abc = prompt + body
+        path = Path(tempfile.NamedTemporaryFile(suffix=".musicxml", delete=False).name)
+        # check the tune with the syntax reward first: it has a timeout, and music21 never returns on some tunes
+        ok = rewards.syntax(completions=[body], prompts=[prompt])[0] == 1.0 and export_musicxml(abc, path)
+        return abc, str(path) if ok else None  # the tune is shown anyway, only the MusicXML file is missing
 
     with gr.Blocks(title="abc-gpt") as demo:
         gr.Markdown("## abc-gpt: Irish tunes from a small GPT-2")

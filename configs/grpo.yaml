@@ -25,5 +25,8 @@ bf16: true
 logging_steps: 10
 save_strategy: steps
 save_steps: 250
-report_to: none
+report_to: wandb           # none to disable; also tensorboard, trackio (project and mode: see run.sh)
+run_name: grpo
+log_completions: true      # a table of prompts, generated tunes and rewards every logging_steps
+num_completions_to_print: 2  # how many of them are also printed in the terminal
 seed: 42

@@ -1,0 +1,12 @@
+# python -m abcgpt.data --config configs/data.yaml   (after abcgpt.prepare, which trains the tokenizer)
+# DataTrove pipeline per split: Hub reader -> ABC filter -> pretrain, finetune and prompt writers
+dataset_name: sander-wood/irishman
+tokenizer_file: models/gpt2-abc-init/tokenizer.json
+max_tokens: 512            # longer tunes are dropped instead of cut by trl (keep it equal to max_length)
+data_dir: data             # pretrain/, finetune/, grpo/, eval/, removed/ (dropped tunes), logs/
+grpo_prompts_rate: 0.025   # share of the training tunes used as GRPO prompts (~5,300)
+eval_prompts_rate: 0.1     # share of the validation tunes used by evaluate (~210)
+tasks: 8                   # parallel processes here, or Slurm array tasks
+slurm_partition: null      # e.g. cpu: submit one Slurm job array per split instead of running here
+slurm_time: "01:00:00"
+seed: 42

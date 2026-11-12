@@ -5,3 +5,4 @@ models/
 outputs/
 *.out
 .pytest_cache/
+wandb/

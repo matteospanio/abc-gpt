@@ -22,7 +22,7 @@ from abcgpt import rewards
 class EvaluateConfig:
     checkpoints: list[str] = field(default_factory=lambda: ["models/gpt2-abc-pretrain", "models/gpt2-abc-sft",
                                                              "models/gpt2-abc-grpo"])
-    prompts_file: str = "data/eval/prompts.jsonl"
+    prompts_dir: str = "data/eval"  # JSONL files written by abcgpt.data
     num_samples: int = 100
     batch_size: int = 25
     max_new_tokens: int = 384
@@ -55,8 +55,8 @@ def export_musicxml(abc: str, path: Path) -> bool:
 
 
 def main(cfg: EvaluateConfig) -> None:
-    with open(cfg.prompts_file, encoding="utf-8") as f:
-        prompts = [json.loads(line)["prompt"] for line in f]
+    prompts = [json.loads(line)["prompt"] for path in sorted(Path(cfg.prompts_dir).glob("*.jsonl"))
+               for line in path.open(encoding="utf-8")]
     prompts = (prompts * (cfg.num_samples // len(prompts) + 1))[: cfg.num_samples]
 
     rows = []
