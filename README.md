@@ -14,7 +14,7 @@ so every stage uses a library from that stack:
 | `grpo` | reinforcement learning with three rewards computed with music21 | `trl grpo` |
 | `evaluate` | compares the checkpoints on the rewards, exports the tunes to MusicXML | `transformers` |
 | `export` | GGUF file for llama.cpp | `convert_hf_to_gguf.py` |
-| `demo` | web app that composes a tune and draws the score | `gradio` |
+| `demo` | web app that composes a tune, draws the score and plays it | `gradio` |
 
 Data: [IrishMAN](https://huggingface.co/datasets/sander-wood/irishman) (214,122 training and 2,162
 validation tunes, MIT licence). Each tune comes with a *control code* (number of sections, bars per
@@ -253,7 +253,7 @@ src/abcgpt/data.py        DataTrove pipeline: filters and datasets of every stag
 src/abcgpt/rewards.py     syntax, meter, note_order
 src/abcgpt/evaluate.py    reward table and MusicXML export
 src/abcgpt/export_gguf.py GGUF conversion
-src/abcgpt/app.py         Gradio demo, score drawn by abcjs in the browser
+src/abcgpt/app.py         Gradio demo, score drawn and played by abcjs in the browser
 slurm/train.sbatch        one node, all its GPUs
 tests/test_rewards.py     real tunes vs corrupted ones
 tests/test_data.py        what ABCFilter keeps and drops
@@ -276,4 +276,5 @@ run.sh                    one entry point for all the stages
 
 MIT, see [LICENSE](LICENSE). The tunes used as test fixtures come from IrishMAN (MIT licence). The
 dependencies are under permissive licences (Apache-2.0, BSD-3-Clause, MIT); abcjs (MIT) is loaded by
-the demo from a CDN and llama.cpp (MIT) is used from its own checkout, so neither is included here.
+the demo from a CDN (its player fetches a soundfont from the abcjs site) and llama.cpp (MIT) is used from
+its own checkout, so neither is included here.

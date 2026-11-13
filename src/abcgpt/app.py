@@ -1,4 +1,4 @@
-"""Stage 7: Gradio demo. Generates a tune and draws the score in the browser with abcjs.
+"""Stage 7: Gradio demo. Generates a tune, then draws and plays the score in the browser with abcjs.
 
     python -m abcgpt.app --config configs/app.yaml [--model_path models/gpt2-abc-sft]
 """
@@ -15,8 +15,18 @@ from trl import TrlParser
 from abcgpt import rewards
 from abcgpt.evaluate import export_musicxml
 
-ABCJS = '<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>'
-DRAW = "(abc) => { ABCJS.renderAbc('score', abc, { responsive: 'resize' }); return []; }"
+ABCJS = ('<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>'
+         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/abcjs-audio.css">')
+# draws the score and hands it to abcjs's player (its soundfont is downloaded from the abcjs site on the first play)
+DRAW = """(abc) => {
+  const tune = ABCJS.renderAbc('score', abc, { responsive: 'resize' })[0];
+  if (!window.player) {
+    window.player = new ABCJS.synth.SynthController();
+    window.player.load('#player', null, { displayPlay: true, displayProgress: true, displayRestart: true, displayLoop: true });
+  }
+  window.player.setTune(tune, false);  // false: audio starts only from a click on play, as browsers require
+  return [];
+}"""
 
 
 @dataclass
@@ -55,7 +65,7 @@ def build(cfg: AppConfig) -> gr.Blocks:
             control = gr.Textbox(value="S:2 B:8 E:5 B:8", label="Control code (sections, bars, similarity)")
             temperature = gr.Slider(0.5, 1.5, value=1.0, step=0.05, label="Temperature")
         button = gr.Button("Compose", variant="primary")
-        score = gr.HTML('<div id="score"></div>')
+        score = gr.HTML('<div id="score"></div><div id="player"></div>')
         abc = gr.Textbox(label="ABC", lines=8)
         obtained = gr.Textbox(label="Control code of the generated tune")
         musicxml = gr.File(label="MusicXML")
