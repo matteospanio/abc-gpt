@@ -135,6 +135,7 @@ def main(cfg: DataConfig) -> None:
         if cfg.slurm_partition:
             executor = SlurmPipelineExecutor(pipeline, tasks=cfg.tasks, time=cfg.slurm_time,
                                              partition=cfg.slurm_partition, logging_dir=logging_dir,
+                                             qos=None,  # DataTrove defaults to "normal", which many clusters lack: use the account's default
                                              job_name=f"data-{split}", venv_path=f"{sys.prefix}/bin/activate")
         else:
             executor = LocalPipelineExecutor(pipeline, tasks=cfg.tasks, logging_dir=logging_dir)
