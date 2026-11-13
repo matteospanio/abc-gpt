@@ -143,5 +143,8 @@ def main(cfg: DataConfig) -> None:
 
 
 if __name__ == "__main__":
+    # the pipeline must come from abcgpt.data, not __main__: dill pickles __main__'s globals by reference,
+    # and in the Slurm job __main__ is launch_pickled_pipeline (NameError: name 'split_tune' is not defined)
+    from abcgpt.data import DataConfig, main
     (cfg,) = TrlParser((DataConfig,)).parse_args_and_config()
     main(cfg)
