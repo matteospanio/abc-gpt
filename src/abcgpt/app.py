@@ -20,11 +20,11 @@ ABCJS = ('<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic
 # draws the score and hands it to abcjs's player (its soundfont is downloaded from the abcjs site on the first play)
 DRAW = """(abc) => {
   const tune = ABCJS.renderAbc('score', abc, { responsive: 'resize' })[0];
-  if (!window.player) {
-    window.player = new ABCJS.synth.SynthController();
-    window.player.load('#player', null, { displayPlay: true, displayProgress: true, displayRestart: true, displayLoop: true });
+  if (!window.synth) {  // not window.player: that name is already the <div id="player"> element
+    window.synth = new ABCJS.synth.SynthController();
+    window.synth.load('#player', null, { displayPlay: true, displayProgress: true, displayRestart: true, displayLoop: true });
   }
-  window.player.setTune(tune, false);  // false: audio starts only from a click on play, as browsers require
+  window.synth.setTune(tune, false);  // false: audio starts only from a click on play, as browsers require
   return [];
 }"""
 
