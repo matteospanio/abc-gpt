@@ -15,16 +15,18 @@ from trl import TrlParser
 from abcgpt import rewards
 from abcgpt.evaluate import export_musicxml
 
-ABCJS = ('<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>'
-         '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/abcjs-audio.css">')
-# draws the score and hands it to abcjs's player (its soundfont is downloaded from the abcjs site on the first play)
-DRAW = """(abc) => {
+ABCJS = '<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>'
+# draws the score, then abcjs synthesizes it into a WAV for the browser's own <audio> player
+# (abcjs's player buttons are tiny and vanish in Gradio's dark theme; its soundfont comes from the abcjs site)
+DRAW = """async (abc) => {
   const tune = ABCJS.renderAbc('score', abc, { responsive: 'resize' })[0];
-  if (!window.synth) {  // not window.player: that name is already the <div id="player"> element
-    window.synth = new ABCJS.synth.SynthController();
-    window.synth.load('#player', null, { displayPlay: true, displayProgress: true, displayRestart: true, displayLoop: true });
-  }
-  window.synth.setTune(tune, false);  // false: audio starts only from a click on play, as browsers require
+  const audio = document.getElementById('audio');
+  if (audio.src) URL.revokeObjectURL(audio.src);
+  audio.removeAttribute('src');
+  const synth = new ABCJS.synth.CreateSynth();
+  await synth.init({ visualObj: tune, options: {} });  // prime() fails without options (it reads options.swing)
+  await synth.prime();
+  audio.src = synth.download();
   return [];
 }"""
 
@@ -65,7 +67,7 @@ def build(cfg: AppConfig) -> gr.Blocks:
             control = gr.Textbox(value="S:2 B:8 E:5 B:8", label="Control code (sections, bars, similarity)")
             temperature = gr.Slider(0.5, 1.5, value=1.0, step=0.05, label="Temperature")
         button = gr.Button("Compose", variant="primary")
-        score = gr.HTML('<div id="score"></div><div id="player"></div>')
+        score = gr.HTML('<div id="score"></div><audio id="audio" controls style="width: 100%"></audio>')
         abc = gr.Textbox(label="ABC", lines=8)
         obtained = gr.Textbox(label="Control code of the generated tune")
         musicxml = gr.File(label="MusicXML")
