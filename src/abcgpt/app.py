@@ -3,6 +3,7 @@
     python -m abcgpt.app --config configs/app.yaml [--model_path models/gpt2-abc-sft]
 """
 
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -41,6 +42,10 @@ class AppConfig:
 
 def build(cfg: AppConfig) -> gr.Blocks:
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    if device == "cpu":
+        # shortcut: half the CPUs, measured on one laptop (8 cores, 4 of them performance cores): 2-4 threads give
+        # ~180 tok/s and 8 give ~110, a model this small gains nothing from more threads; measure on other CPUs
+        torch.set_num_threads(max(1, (os.cpu_count() or 2) // 2))
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_path)
     model = AutoModelForCausalLM.from_pretrained(cfg.model_path).to(device).eval()
 
