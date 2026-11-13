@@ -48,6 +48,8 @@ def build(cfg: AppConfig) -> gr.Blocks:
         torch.set_num_threads(max(1, (os.cpu_count() or 2) // 2))
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_path)
     model = AutoModelForCausalLM.from_pretrained(cfg.model_path).to(device).eval()
+    # start the music21 worker of the syntax reward now (~13 s on a laptop) rather than on the first Compose
+    rewards.syntax(completions=["|:A2 B2:|\n"], prompts=["X:1\nL:1/8\nM:2/4\nK:D\n"])
 
     @torch.no_grad()
     def compose(meter: str, key: str, control: str, temperature: float):

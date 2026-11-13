@@ -15,6 +15,7 @@ as dotted paths (`abcgpt.rewards.syntax`) and weighted with `reward_weights`.
 
 import contextlib
 import io
+import multiprocessing
 import os
 import re
 import signal
@@ -40,7 +41,10 @@ def quiet():
 def _pool():
     global _POOL
     if _POOL is None:
-        _POOL = ProcessPoolExecutor(max_workers=min(8, os.cpu_count() or 1))
+        # forkserver, not fork: forked workers inherit every open socket (in the demo, the browser's connections to
+        # Gradio, which then never close and block the next request) and forking after CUDA/OpenMP is unsafe
+        _POOL = ProcessPoolExecutor(max_workers=min(8, os.cpu_count() or 1),
+                                    mp_context=multiprocessing.get_context("forkserver"))
     return _POOL
 
 
