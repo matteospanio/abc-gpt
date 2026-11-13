@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-demo = ["gradio>=6.0"]
+demo = ["gradio[mcp]>=6.0"]  # the [mcp] extra pins the mcp version Gradio supports (1.x: 2.x has no Server.call_tool)
 
 [dependency-groups]
 dev = ["pytest>=8"]

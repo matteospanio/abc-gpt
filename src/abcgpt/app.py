@@ -53,6 +53,18 @@ def build(cfg: AppConfig) -> gr.Blocks:
 
     @torch.no_grad()
     def compose(meter: str, key: str, control: str, temperature: float):
+        """Write an Irish folk tune in ABC notation with a small GPT-2, and export it to MusicXML.
+
+        Args:
+            meter: time signature, the ABC M: field (e.g. 6/8 for a jig, 4/4 for a reel, 3/4, 2/4, 9/8)
+            key: key and mode, the ABC K: field (e.g. D, G, Emin, Amin, Dmix, Ador)
+            control: structure code, e.g. "S:2 B:8 E:5 B:8" = 2 sections of 8 bars, the 2nd 50% similar to the 1st (E:0-10)
+            temperature: sampling temperature, from 0.5 (safer, more repetitive) to 1.5 (more varied, more mistakes)
+
+        Returns:
+            the tune in ABC; the MusicXML file, or None if music21 cannot read the tune; the tune's own control code
+        """
+        # Gradio builds the MCP tool description from this docstring: one line per parameter, Google style
         prompt = f"%{control.strip()}\nX:1\nL:1/8\nM:{meter}\nK:{key}\n"
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
         out = model.generate(**inputs, do_sample=True, temperature=temperature, max_new_tokens=cfg.max_new_tokens,
@@ -85,4 +97,4 @@ def build(cfg: AppConfig) -> gr.Blocks:
 
 if __name__ == "__main__":
     (cfg,) = TrlParser((AppConfig,)).parse_args_and_config()
-    build(cfg).launch(server_name=cfg.server_name, server_port=cfg.server_port, head=ABCJS)
+    build(cfg).launch(server_name=cfg.server_name, server_port=cfg.server_port, head=ABCJS, mcp_server=True)
