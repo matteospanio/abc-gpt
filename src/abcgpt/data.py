@@ -121,6 +121,7 @@ def main(cfg: DataConfig) -> None:
     for split, prompts_dir, rate in (("train", data / "grpo", cfg.grpo_prompts_rate),
                                      ("validation", data / "eval", cfg.eval_prompts_rate)):
         def writer(folder, adapter=None):
+            folder.mkdir(parents=True, exist_ok=True)  # here, not in the Slurm tasks: see the NFS note below
             return JsonlWriter(str(folder), output_filename="${rank}.jsonl", compression=None, adapter=adapter)
 
         pipeline = [
@@ -133,6 +134,10 @@ def main(cfg: DataConfig) -> None:
         ]
         logging_dir = str(data / "logs" / split)
         if cfg.slurm_partition:
+            # tasks on different nodes would create these folders at the same moment, and on NFS that can raise
+            # FileExistsError even with exist_ok=True (a node does not see yet the folder made by another one)
+            for folder in ("logs", "stats", "completions"):
+                Path(logging_dir, folder).mkdir(parents=True, exist_ok=True)
             executor = SlurmPipelineExecutor(pipeline, tasks=cfg.tasks, time=cfg.slurm_time,
                                              partition=cfg.slurm_partition, logging_dir=logging_dir,
                                              qos=None,  # DataTrove defaults to "normal", which many clusters lack: use the account's default
